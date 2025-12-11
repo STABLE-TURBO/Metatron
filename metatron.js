@@ -5,7 +5,7 @@
 import readline from 'node:readline';
 import fetch from 'node-fetch';
 
-const rl = readline.createInterface({
+const rl = readline.createInterface({ // Readline interface for user input (Terminal)
   input: process.stdin,
   output: process.stdout
 });
@@ -63,6 +63,7 @@ async function main() {
     console.log(raw + '\n');
 
     // Parse the three parts
+    // Extracts EXPLANATION, CODE, VERIFICATION using regex parsing
     const explMatch = raw.match(/EXPLANATION:\s*([\s\S]*?)\nCODE:/i);
     const codeMatch = raw.match(/CODE:\s*([\s\S]*?)\nVERIFICATION:/i);
     const verifMatch = raw.match(/VERIFICATION:\s*([\s\S]*)$/i);
@@ -71,6 +72,7 @@ async function main() {
     const code = codeMatch ? codeMatch[1].trim() : '// error';
     const verification = verifMatch ? verifMatch[1].trim() : '—';
 
+    // Appends only the extracted CODE to fullCode
     fullCode += code + '\n\n';
 
     // Show nice table
