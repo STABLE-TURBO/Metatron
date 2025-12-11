@@ -1,57 +1,109 @@
-## Overview
-This project aims to build an **abductive reasoning debugger** using Rust. Unlike traditional debuggers that rely on pattern matching, this system infers **probable causes of bugs** by logically analyzing the structure of errors. 
+# Metatron
 
-## Features
-- **Automated abductive reasoning**: The debugger explains errors by identifying potential root causes instead of just reporting symptoms.
-- **Self-learning system**: It can dynamically enrich its knowledge base by associating errors with their corrections.
-- **Multi-framework compatibility**: Works across multiple languages and frameworks (Python, Solidity, TensorFlow, etc.), allowing efficient cross-platform debugging.
-- **Non-execution debugging**: Debugs code without running it by logically reasoning through rules and facts.
-- **Hierarchical bug reasoning**: Traces errors back to their **deepest cause**, reducing the need for extensive manual debugging.
+A stepwise, security-focused code generator CLI that forces an LLM to produce **one small verified step at a time**.
 
-## Implementation
-- **Knowledge Base**: Stores known facts (e.g., common errors) and abductive rules (e.g., _If A and B → C_).
-- **Inference Engine**: Determines the possible causes of a given error using abductive logic.
-- **Rule System**: Defines conditions under which specific bugs can occur.
-- **Dynamic Learning**: Updates the system with new insights as debugging progresses.
+This project is intentionally minimal: a single Node.js script ([`metatron.js`](metatron.js)) that:
+- asks you what you want to build,
+- repeatedly requests the **next single critical step**,
+- enforces a strict response format (**EXPLANATION / CODE / VERIFICATION**),
+- accumulates generated code until you stop.
 
-## Example Use Case
-1. A model crashes due to an undefined variable.
-2. The debugger traces the issue back to missing initialization in the computation graph.
-3. Instead of just reporting “Crash at Line X,” it suggests, _“This could be caused by an uninitialized variable or an incorrect layer configuration.”_
+## What it does
 
-## Next Steps
-- Integrate real-time log analysis.
-- Enhance the inference engine with machine learning techniques.
-- Develop a visualization tool for dependency tracing.
+When you run the CLI, it:
+1. Prompts for your overall task (e.g. “PDF invoice generator from JSON cart”).
+2. Calls an OpenAI-compatible chat-completions API (currently configured for X.AI).
+3. Requires the model to respond *only* as:
 
-This system could revolutionize debugging by offering **intelligent, explainable, and efficient error analysis**. 🚀
+```
+EXPLANATION: ...
+CODE: ...
+VERIFICATION: ...
+```
 
-### Why This Debugger Is Different and Powerful  
+4. Parses those sections, appends the `CODE` snippet to a growing “full code” output, and appends the full step output to the running context so the next step has continuity.
+5. On `stop`, prints the full accumulated code.
 
-1. **Automated Abductive Reasoning (Causal Debugging)**  
-   - Traditional debuggers detect **what** went wrong (e.g., a segmentation fault).  
-   - This debugger infers **why** it happened by **tracing logical causes**, making it **more intelligent than pattern-matching tools**.  
+## Why this exists
 
-2. **No Code Execution Needed (Logical Debugging)**  
-   - Unlike conventional tools that run the program and analyze logs, this system **analyzes the code structure itself**.  
-   - It **predicts potential issues before execution**, saving debugging time in critical environments like **high-frequency trading, AI models, and smart contracts**.  
+Most “AI coding” workflows fail because they are:
+- too big-bang (huge outputs you can’t validate),
+- too unstructured (no consistent format),
+- too light on verification (no security/standards references).
 
-3. **Multi-Framework, Multi-Language Support**  
-   - Works across Python, Rust, Solidity, TensorFlow, and more.  
-   - Instead of **one debugger per language**, this provides a **unified logic-based approach**.  
+Metatron’s goal is to make generation **structured, incremental, and easier to audit**.
 
-4. **Self-Learning System**  
-   - Most debuggers are **static**—they apply the same rules repeatedly.  
-   - This debugger **learns dynamically** by associating new errors with **previously solved bugs**.  
-   - Over time, it **adapts** to your project, making it smarter with every debugging session.  
+## Requirements
 
-5. **Hierarchical Debugging (Root Cause Analysis)**  
-   - Regular debuggers often point to **surface errors**.  
-   - This debugger **traces errors back to their root cause** (e.g., an uninitialized weight in a neural network causing gradient explosion).  
+- Node.js 18+ (Node 20+ recommended)
+- An API key for the configured provider (default: X.AI Grok)
 
-### Real-World Impact  
-- **Machine Learning & AI**: Diagnosing **vanishing gradients, dead neurons, and inefficient layers**.  
-- **Smart Contracts**: Debugging Solidity **without running costly test transactions**.  
-- **High-Performance Systems**: Finding **silent failures** before they trigger catastrophic bugs.  
+## Setup
 
-This is **not just another debugger**—it’s an **AI-assisted reasoning system that predicts, explains, and evolves**. 
+This repository currently has **no** `package.json`. Because [`metatron.js`](metatron.js) uses ESM `import` statements and depends on `node-fetch`, you’ll typically want to initialize a small Node project in this folder:
+
+```bash
+npm init -y
+npm pkg set type=module
+npm i node-fetch
+```
+
+Then provide your API key via environment variable (recommended) or paste it when prompted.
+
+### Environment variable
+
+- Windows (cmd.exe):
+
+```bat
+set GROK_API_KEY=your_key_here
+```
+
+- macOS/Linux:
+
+```bash
+export GROK_API_KEY=your_key_here
+```
+
+## Run
+
+```bash
+node metatron.js
+```
+
+You’ll see a prompt like:
+
+- “Describe what you want to build…”
+- Then step-by-step generation begins:
+  - press **Enter** to request the next step
+  - type **stop** to print the full generated code
+  - type **quit** to exit
+
+## Configuration
+
+In [`metatron.js`](metatron.js):
+
+- The model is configured via the `MODEL` constant (see [`MODEL`](metatron.js:14)).
+- The API key is read from `process.env.GROK_API_KEY` or prompted interactively (see [`API_KEY`](metatron.js:13)).
+- The endpoint is currently set to `https://api.x.ai/v1/chat/completions` (see [`grok()`](metatron.js:20)).
+
+## Output format guarantees (and limits)
+
+The system prompt forces the model to produce:
+- a plain-English explanation of the step,
+- the code for that single step,
+- a verification hint (e.g., inline test/assertion + reference like OWASP/MDN/CVE).
+
+If the model fails to follow the format, the parser will fall back to placeholder values, and the generated code for that step may be `// error` (see parsing in [`main()`](metatron.js:47)).
+
+## Security notes
+
+- **Secrets**: Your API key is used locally, but prompts and context are sent to the remote API provider. Don’t paste sensitive secrets or proprietary code unless you accept that risk.
+- **Verification is guidance, not proof**: References in `VERIFICATION` help auditing, but you still must run tests, static analysis, and security review yourself.
+- **Prompt injection**: If you feed untrusted text into the task/context, the model can be influenced. Treat external inputs as hostile.
+
+## Roadmap (ideas)
+
+- Write a `package.json` and lockfile for reproducible installs.
+- Add provider configuration via environment variables (endpoint/model).
+- Save steps + full code to files.
+- Add a “verification gate” that requires you to confirm checks before continuing.
