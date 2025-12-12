@@ -1,5 +1,8 @@
 # Metatron
 
+<img width="500" height="500" alt="Design sans titre" src="https://github.com/user-attachments/assets/6b8c36d2-deee-4184-8534-28b24d848e64" />
+
+
 A stepwise, security-focused code generator CLI that forces an LLM to produce **one small verified step at a time**.
 
 This project is intentionally minimal: a single Node.js script ([`metatron.js`](metatron.js)) that:
@@ -106,5 +109,9 @@ If the model fails to follow the format, the parser will fall back to placeholde
 - Write a `package.json` and lockfile for reproducible installs.
 - Add provider configuration via environment variables (endpoint/model).
 - Save steps + full code to files.
+<<<<<<< HEAD
 - Add a “verification gate” that halts when a step can’t be grounded in reliable sources (OWASP/MDN/CVE/etc.), explains what’s happening, and asks the user targeted questions before continuing.
 - Add an optional “strict verification” mode that rejects steps without a concrete reference (link/standard/CVE id) in `VERIFICATION`.
+=======
+- Add a “verification gate” that requires you to confirm checks before continuing.
+>>>>>>> d2470c92147476a7e5b6639cd704d4d10703791d
