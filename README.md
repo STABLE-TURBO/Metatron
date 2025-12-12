@@ -18,7 +18,7 @@ When you run the CLI, it:
 ```
 EXPLANATION: ...
 CODE: ...
-VERIFICATION: ...
+VERIFICATION: ...\n[step-XX verification]…
 ```
 
 4. Parses those sections, appends the `CODE` snippet to a growing “full code” output, and appends the full step output to the running context so the next step has continuity.
@@ -106,4 +106,5 @@ If the model fails to follow the format, the parser will fall back to placeholde
 - Write a `package.json` and lockfile for reproducible installs.
 - Add provider configuration via environment variables (endpoint/model).
 - Save steps + full code to files.
-- Add a “verification gate” that requires you to confirm checks before continuing.
+- Add a “verification gate” that halts when a step can’t be grounded in reliable sources (OWASP/MDN/CVE/etc.), explains what’s happening, and asks the user targeted questions before continuing.
+- Add an optional “strict verification” mode that rejects steps without a concrete reference (link/standard/CVE id) in `VERIFICATION`.
