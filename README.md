@@ -1,5 +1,8 @@
 # Metatron
 
+<img width="500" height="500" alt="Design sans titre" src="https://github.com/user-attachments/assets/6b8c36d2-deee-4184-8534-28b24d848e64" />
+
+
 A stepwise, security-focused code generator CLI that forces an LLM to produce **one small verified step at a time**.
 
 This project is intentionally minimal: a single Node.js script ([`metatron.js`](metatron.js)) that:
