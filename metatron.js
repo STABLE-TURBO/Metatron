@@ -235,7 +235,6 @@ async function main() {
     console.log(`\nStep ${step} – asking AI…\n`);
 
     const raw = await callAI(prompt, config);
-    console.log(raw + '\n');
 
     // Regex Parser Implementation
     // Response Parsing
@@ -250,11 +249,33 @@ async function main() {
 
     fullCode += code + '\n\n';
 
-    console.log('│ Explanation          │ Code Snippet                  │ Verification                     │');
-    console.log('├──────────────────────┼───────────────────────────────┼──────────────────────────────────┤');
-    console.log(`│ ${explanation.padEnd(20).slice(0,20)} │ ${code.split('\n')[0].padEnd(29).slice(0,29)} │ ${verification.padEnd(32).slice(0,32)} │\n`);
+    // Enhanced display with adaptive table formatting (replace fixed table code)
+    const explLen = Math.max(12, Math.min(50, explanation.length));
+    const codeLen = Math.max(4, Math.min(40, code.split('\n')[0].length));
+    const verifLen = Math.max(12, Math.min(50, verification.length));
 
-    const answer = await ask('→ Press Enter for next step, "save" to save session, "stop" to output full code, "quit" to exit: ');
+    const totalWidth = explLen + codeLen + verifLen + 10; // Account for borders and padding
+
+    console.log('┌' + '─'.repeat(totalWidth) + '┐');
+    console.log('│ Step Output' + ' '.repeat(totalWidth - 12) + '│');
+    console.log('├' + '─'.repeat(totalWidth) + '┤');
+    console.log(`│ Explanation: ${explanation.padEnd(explLen)} │ Code: ${code.split('\n')[0].padEnd(codeLen)} │ Verification: ${verification.padEnd(verifLen)} │`);
+    console.log('└' + '─'.repeat(totalWidth) + '┘\n');
+
+    // Optional: Add details command support
+    let answer = await ask('→ Press Enter for next step, "details" to show full content, "save" to save session, "stop" to output full code, "quit" to exit: ');
+    if (answer.toLowerCase() === 'details') {
+      console.log('\n--- FULL DETAILS ---');
+      console.log('EXPLANATION:');
+      console.log(explanation);
+      console.log('\nCODE:');
+      console.log(code);
+      console.log('\nVERIFICATION:');
+      console.log(verification);
+      console.log('--- END DETAILS ---\n');
+      // Re-prompt after showing details
+      answer = await ask('→ Press Enter for next step, "save" to save session, "stop" to output full code, "quit" to exit: ');
+    }
     if (answer.toLowerCase() === 'quit') break;
     if (answer.toLowerCase() === 'save') {
       const sessionData = {
