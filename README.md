@@ -1,6 +1,6 @@
 # Metatron
 
-<img width="500" height="500" alt="Design sans titre" src="https://github.com/user-attachments/assets/6b8c36d2-deee-4184-8534-28b24d848e64" />
+<img width="200" height="200" alt="Metatron Logo" src="metatron-logo.svg" />
 
 
 A stepwise, security-focused code generator CLI that forces an LLM to produce **one small verified step at a time**.
@@ -28,7 +28,7 @@ VERIFICATION: ...\n[step-XX verification]…
 4. Parses those sections, appends the `CODE` snippet to a growing "full code" output, and appends the full step output to the running context so the next step has continuity.
 5. On `stop`, prints the full accumulated code.
 
-![alt text](Metatron_Stepwise_Code_Generation_Workflow.png)
+![Metatron Stepwise Code Generation Workflow](Metatron_Stepwise_Code_Generation_Workflow.png)
 
 
 ## Why this exists
