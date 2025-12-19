@@ -1,3 +1,5 @@
+- Add a “verification gate” that requires you to confirm checks before continuing.
+>>>>>>> d2470c92147476a7e5b6639cd704d4d10703791d
 # Metatron
 
 <img width="500" height="500" alt="Design sans titre" src="https://github.com/user-attachments/assets/6b8c36d2-deee-4184-8534-28b24d848e64" />
@@ -14,9 +16,10 @@ This project is intentionally minimal: a single Node.js script ([`metatron.js`](
 ## What it does
 
 When you run the CLI, it:
-1. Prompts for your overall task (e.g. “PDF invoice generator from JSON cart”).
-2. Calls an OpenAI-compatible chat-completions API (currently configured for X.AI).
-3. Requires the model to respond *only* as:
+1. Prompts you to select an AI provider (Grok, Ollama, or Groq).
+2. Prompts for your overall task (e.g. "PDF invoice generator from JSON cart").
+3. Calls the selected AI provider's chat-completions API.
+4. Requires the model to respond *only* as:
 
 ```
 EXPLANATION: ...
@@ -24,26 +27,29 @@ CODE: ...
 VERIFICATION: ...\n[step-XX verification]…
 ```
 
-4. Parses those sections, appends the `CODE` snippet to a growing “full code” output, and appends the full step output to the running context so the next step has continuity.
+4. Parses those sections, appends the `CODE` snippet to a growing "full code" output, and appends the full step output to the running context so the next step has continuity.
 5. On `stop`, prints the full accumulated code.
+
+![alt text](Metatron_Stepwise_Code_Generation_Workflow.png)
+
 
 ## Why this exists
 
-Most “AI coding” workflows fail because they are:
-- too big-bang (huge outputs you can’t validate),
+Most "AI coding" workflows fail because they are:
+- too big-bang (huge outputs you can't validate),
 - too unstructured (no consistent format),
 - too light on verification (no security/standards references).
 
-Metatron’s goal is to make generation **structured, incremental, and easier to audit**.
+Metatron's goal is to make generation **structured, incremental, and easier to audit**.
 
 ## Requirements
 
 - Node.js 18+ (Node 20+ recommended)
-- An API key for the configured provider (default: X.AI Grok)
+- API key for cloud providers (Grok/Groq) or local Ollama installation
 
 ## Setup
 
-This repository currently has **no** `package.json`. Because [`metatron.js`](metatron.js) uses ESM `import` statements and depends on `node-fetch`, you’ll typically want to initialize a small Node project in this folder:
+Initialize the Node.js project and install dependencies:
 
 ```bash
 npm init -y
@@ -51,20 +57,36 @@ npm pkg set type=module
 npm i node-fetch
 ```
 
-Then provide your API key via environment variable (recommended) or paste it when prompted.
+### API Keys (for cloud providers)
 
-### Environment variable
+Set environment variables for your preferred provider(s):
 
-- Windows (cmd.exe):
+**Grok (xAI):**
+```bash
+# Windows (cmd.exe)
+set GROK_API_KEY=your_grok_key_here
 
-```bat
-set GROK_API_KEY=your_key_here
+# macOS/Linux
+export GROK_API_KEY=your_grok_key_here
 ```
 
-- macOS/Linux:
-
+**Groq:**
 ```bash
-export GROK_API_KEY=your_key_here
+# Windows (cmd.exe)
+set GROQ_API_KEY=your_groq_key_here
+
+# macOS/Linux
+export GROQ_API_KEY=your_groq_key_here
+```
+
+**Ollama (Local):**
+No API key needed, but you must have Ollama running locally:
+```bash
+# Install Ollama from https://ollama.ai/
+# Pull a model (example)
+ollama pull llama2
+# Set model via environment variable (optional)
+export OLLAMA_MODEL=llama2
 ```
 
 ## Run
@@ -73,21 +95,34 @@ export GROK_API_KEY=your_key_here
 node metatron.js
 ```
 
-You’ll see a prompt like:
+You'll see a prompt like:
 
-- “Describe what you want to build…”
+- "Describe what you want to build…"
 - Then step-by-step generation begins:
   - press **Enter** to request the next step
   - type **stop** to print the full generated code
   - type **quit** to exit
 
+## Supported AI Providers
+
+**Grok (xAI):**
+- Model: `grok-4`
+- Endpoint: `https://api.x.ai/v1/chat/completions`
+- Requires: `GROK_API_KEY` environment variable
+
+**Ollama (Local):**
+- Model: Configurable via `OLLAMA_MODEL` env var (default: `llama2`)
+- Endpoint: `http://localhost:11434/v1/chat/completions`
+- Requires: Ollama running locally, no API key needed
+
+**Groq:**
+- Model: `mixtral-8x7b-32768`
+- Endpoint: `https://api.groq.com/openai/v1/chat/completions`
+- Requires: `GROQ_API_KEY` environment variable
+
 ## Configuration
 
-In [`metatron.js`](metatron.js):
-
-- The model is configured via the `MODEL` constant (see [`MODEL`](metatron.js:14)).
-- The API key is read from `process.env.GROK_API_KEY` or prompted interactively (see [`API_KEY`](metatron.js:13)).
-- The endpoint is currently set to `https://api.x.ai/v1/chat/completions` (see [`grok()`](metatron.js:20)).
+In [`metatron.js`](metatron.js), provider configurations are handled dynamically in the `getProviderConfig()` function. You can modify the default models, endpoints, or add new providers by editing this function.
 
 ## Output format guarantees (and limits)
 
@@ -100,7 +135,7 @@ If the model fails to follow the format, the parser will fall back to placeholde
 
 ## Security notes
 
-- **Secrets**: Your API key is used locally, but prompts and context are sent to the remote API provider. Don’t paste sensitive secrets or proprietary code unless you accept that risk.
+- **Secrets**: Your API key is used locally, but prompts and context are sent to the remote API provider. Don't paste sensitive secrets or proprietary code unless you accept that risk.
 - **Verification is guidance, not proof**: References in `VERIFICATION` help auditing, but you still must run tests, static analysis, and security review yourself.
 - **Prompt injection**: If you feed untrusted text into the task/context, the model can be influenced. Treat external inputs as hostile.
 
@@ -110,8 +145,10 @@ If the model fails to follow the format, the parser will fall back to placeholde
 - Add provider configuration via environment variables (endpoint/model).
 - Save steps + full code to files.
 <<<<<<< HEAD
-- Add a “verification gate” that halts when a step can’t be grounded in reliable sources (OWASP/MDN/CVE/etc.), explains what’s happening, and asks the user targeted questions before continuing.
-- Add an optional “strict verification” mode that rejects steps without a concrete reference (link/standard/CVE id) in `VERIFICATION`.
+- Add a "verification gate" that halts when a step can't be grounded in reliable sources (OWASP/MDN/CVE/etc.), explains what’s happening, and asks the user targeted questions before continuing.
+- Add an optional "strict verification" mode that rejects steps without a concrete reference (link/standard/CVE id) in `VERIFICATION`.
+- Add a "verification gate" that requires you to confirm checks before continuing.
+>>>>>>> d2470c92147476a7e5b6639cd704d4d10703791d
 =======
 - Add a “verification gate” that requires you to confirm checks before continuing.
 >>>>>>> d2470c92147476a7e5b6639cd704d4d10703791d
