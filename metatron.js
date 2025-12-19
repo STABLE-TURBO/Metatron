@@ -16,13 +16,15 @@ USAGE:
   node metatron.js [options]
 
 OPTIONS:
-  --help, -h    Show this help message
-  --test        Run parser tests
+  --help, -h          Show this help message
+  --test              Run parser tests
+  --session=filename  Load a saved session file
 
 SUPPORTED PROVIDERS:
   1. Grok (xAI) - Requires GROK_API_KEY environment variable
   2. Ollama - Local models, no API key needed (OLLAMA_MODEL env var optional)
   3. Groq - Fast inference, requires GROQ_API_KEY environment variable
+  4. Claude (Anthropic) - Requires CLAUDE_API_KEY environment variable
 
 EXAMPLES:
   node metatron.js
@@ -57,17 +59,18 @@ async function selectProvider() {
   console.log('1. Grok (xAI) - Requires API key');
   console.log('2. Ollama - Local models, no API key needed');
   console.log('3. Groq - Fast inference, requires API key');
+  console.log('4. Claude (Anthropic) - Requires API key');
   console.log('');
 
   while (true) {
-    const choice = await ask('Select provider (1-3): ');
+    const choice = await ask('Select provider (1-4): ');
     const numChoice = parseInt(choice);
 
-    if (!isNaN(numChoice) && numChoice >= 1 && numChoice <= 3) {
+    if (!isNaN(numChoice) && numChoice >= 1 && numChoice <= 4) {
       return numChoice;
     }
 
-    console.log('❌ Invalid input. Please enter a number between 1 and 3.');
+    console.log('❌ Invalid input. Please enter a number between 1 and 4.');
   }
 }
 
@@ -78,20 +81,30 @@ async function getProviderConfig(provider) {
       return {
         apiKey: process.env.GROK_API_KEY || await ask('Enter your Grok API key: '),
         model: 'grok-4',
-        endpoint: 'https://api.x.ai/v1/chat/completions'
+        endpoint: 'https://api.x.ai/v1/chat/completions',
+        format: 'openai'
       };
     case 2: // Ollama
       const ollamaModel = process.env.OLLAMA_MODEL || await ask('Enter Ollama model name (default: llama2): ') || 'llama2';
       return {
         apiKey: null, // Ollama doesn't need API key
         model: ollamaModel,
-        endpoint: 'http://localhost:11434/v1/chat/completions'
+        endpoint: 'http://localhost:11434/v1/chat/completions',
+        format: 'openai'
       };
     case 3: // Groq
       return {
         apiKey: process.env.GROQ_API_KEY || await ask('Enter your Groq API key: '),
         model: 'mixtral-8x7b-32768',
-        endpoint: 'https://api.groq.com/openai/v1/chat/completions'
+        endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+        format: 'openai'
+      };
+    case 4: // Claude
+      return {
+        apiKey: process.env.CLAUDE_API_KEY || await ask('Enter your Claude API key: '),
+        model: 'claude-3-sonnet-20240229',
+        endpoint: 'https://api.anthropic.com/v1/messages',
+        format: 'claude'
       };
     default:
       throw new Error('Invalid provider selection');
@@ -104,14 +117,36 @@ async function callAI(prompt, config) {
     'Content-Type': 'application/json'
   };
 
-  if (config.apiKey) {
-    headers['Authorization'] = `Bearer ${config.apiKey}`;
-  }
+  let requestBody;
 
-  const res = await fetch(config.endpoint, {
-    method: 'POST',
-    headers: headers,
-    body: JSON.stringify({
+  if (config.format === 'claude') {
+    // Claude uses different headers and request format
+    headers['x-api-key'] = config.apiKey;
+    headers['anthropic-version'] = '2023-06-01';
+
+    requestBody = {
+      model: config.model,
+      max_tokens: 4096,
+      temperature: 0.2,
+      system: `You are an extremely rigorous, security-focused coding teacher.
+You MUST answer in this exact format and nothing else:
+
+EXPLANATION: <clear English, include definitions and why this step exists, mention pitfalls>
+CODE: <only the code for this single step, no extra text>
+VERIFICATION: <inline test or assertion + reference (OWASP, MDN, CVE, etc.)>
+
+Never put code in the explanation. Never continue without being asked.`,
+      messages: [
+        { role: 'user', content: prompt }
+      ]
+    };
+  } else {
+    // OpenAI-compatible format
+    if (config.apiKey) {
+      headers['Authorization'] = `Bearer ${config.apiKey}`;
+    }
+
+    requestBody = {
       model: config.model,
       temperature: 0.2,
       messages: [
@@ -125,7 +160,13 @@ VERIFICATION: <inline test or assertion + reference (OWASP, MDN, CVE, etc.)>
 Never put code in the explanation. Never continue without being asked.` },
         { role: 'user', content: prompt }
       ]
-    })
+    };
+  }
+
+  const res = await fetch(config.endpoint, {
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify(requestBody)
   });
 
   if (!res.ok) {
@@ -133,25 +174,61 @@ Never put code in the explanation. Never continue without being asked.` },
   }
 
   const data = await res.json();
-  return data.choices[0].message.content.trim();
+
+  // Extract content based on provider format
+  if (config.format === 'claude') {
+    return data.content[0].text.trim();
+  } else {
+    return data.choices[0].message.content.trim();
+  }
 }
 
+
+// Session Management
+async function saveSession(sessionData) {
+  const fs = await import('fs/promises');
+  const filename = `metatron_session_${Date.now()}.json`;
+  await fs.writeFile(filename, JSON.stringify(sessionData, null, 2));
+  console.log(`💾 Session saved to ${filename}`);
+  return filename;
+}
+
+async function loadSession(filename) {
+  const fs = await import('fs/promises');
+  const data = await fs.readFile(filename, 'utf8');
+  return JSON.parse(data);
+}
 
 // Main Application Logic
 async function main() {
   console.clear();
   console.log('Metatron – Stepwise Code Generator\n');
 
-  // Select AI provider
-  const provider = await selectProvider();
-  const config = await getProviderConfig(provider);
+  // Check for session file argument
+  const sessionFile = process.argv.find(arg => arg.startsWith('--session='));
+  let sessionData = null;
 
-  const task = await ask('Describe what you want to build (e.g. "PDF invoice generator from JSON cart"): ');
+  if (sessionFile) {
+    const filename = sessionFile.split('=')[1];
+    try {
+      sessionData = await loadSession(filename);
+      console.log(`📂 Loaded session from ${filename}\n`);
+    } catch (err) {
+      console.error(`❌ Failed to load session: ${err.message}`);
+      process.exit(1);
+    }
+  }
+
+  // Select AI provider (skip if loading session)
+  const provider = sessionData ? sessionData.provider : await selectProvider();
+  const config = sessionData ? sessionData.config : await getProviderConfig(provider);
+
+  const task = sessionData ? sessionData.task : await ask('Describe what you want to build (e.g. "PDF invoice generator from JSON cart"): ');
   console.log('\nStarting step-by-step generation. Press Enter to continue, type "stop" to finish.\n');
 
-  let fullCode = '';
-  let context = `Overall task: ${task}\n\n`;
-  let step = 1;
+  let fullCode = sessionData ? sessionData.fullCode : '';
+  let context = sessionData ? sessionData.context : `Overall task: ${task}\n\n`;
+  let step = sessionData ? sessionData.step : 1;
 
   while (true) {
     const prompt = `Current context so far:\n${context}\n\nWhat is the next SINGLE critical logical step for this task?`;
@@ -174,8 +251,21 @@ async function main() {
     console.log('├──────────────────────┼───────────────────────────────┼──────────────────────────────────┤');
     console.log(`│ ${explanation.padEnd(20).slice(0,20)} │ ${code.split('\n')[0].padEnd(29).slice(0,29)} │ ${verification.padEnd(32).slice(0,32)} │\n`);
 
-    const answer = await ask('→ Press Enter for next step, type "stop" to output full code, "quit" to exit: ');
+    const answer = await ask('→ Press Enter for next step, "save" to save session, "stop" to output full code, "quit" to exit: ');
     if (answer.toLowerCase() === 'quit') break;
+    if (answer.toLowerCase() === 'save') {
+      const sessionData = {
+        provider,
+        config,
+        task,
+        fullCode,
+        context,
+        step,
+        timestamp: new Date().toISOString()
+      };
+      await saveSession(sessionData);
+      continue; // Continue with next step after saving
+    }
     if (answer.toLowerCase() === 'stop') {
       console.log('\nFull generated code:\n');
       console.log(fullCode);

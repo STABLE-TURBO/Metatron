@@ -16,7 +16,7 @@ This project is intentionally minimal: a single Node.js script ([`metatron.js`](
 ## What it does
 
 When you run the CLI, it:
-1. Prompts you to select an AI provider (Grok, Ollama, or Groq).
+1. Prompts you to select an AI provider (Grok, Ollama, Groq, or Claude).
 2. Prompts for your overall task (e.g. "PDF invoice generator from JSON cart").
 3. Calls the selected AI provider's chat-completions API.
 4. Requires the model to respond *only* as:
@@ -100,8 +100,27 @@ You'll see a prompt like:
 - "Describe what you want to build…"
 - Then step-by-step generation begins:
   - press **Enter** to request the next step
+  - type **save** to save your current session to a file
   - type **stop** to print the full generated code
   - type **quit** to exit
+
+## Session Management
+
+Metatron supports saving and loading sessions to preserve your progress:
+
+### Saving Sessions
+During code generation, type `save` when prompted to save your current session to a JSON file.
+
+### Loading Sessions
+```bash
+node metatron.js --session=metatron_session_1234567890123.json
+```
+
+This will resume exactly where you left off, including:
+- Selected AI provider and configuration
+- Current task and context
+- Accumulated code and step count
+- Full conversation history
 
 ## Supported AI Providers
 
@@ -119,6 +138,11 @@ You'll see a prompt like:
 - Model: `mixtral-8x7b-32768`
 - Endpoint: `https://api.groq.com/openai/v1/chat/completions`
 - Requires: `GROQ_API_KEY` environment variable
+
+**Claude (Anthropic):**
+- Model: `claude-3-sonnet-20240229`
+- Endpoint: `https://api.anthropic.com/v1/messages`
+- Requires: `CLAUDE_API_KEY` environment variable
 
 ## Configuration
 
