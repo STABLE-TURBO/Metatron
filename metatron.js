@@ -237,10 +237,13 @@ async function main() {
     const raw = await callAI(prompt, config);
     console.log(raw + '\n');
 
+    // Regex Parser Implementation
+    // Response Parsing
     const explMatch = raw.match(/EXPLANATION:\s*([\s\S]*?)\nCODE:/i);
     const codeMatch = raw.match(/CODE:\s*([\s\S]*?)\nVERIFICATION:/i);
     const verifMatch = raw.match(/VERIFICATION:\s*([\s\S]*)$/i);
 
+    // Data Extraction
     const explanation = explMatch ? explMatch[1].trim() : '—';
     const code = codeMatch ? codeMatch[1].trim() : '// error';
     const verification = verifMatch ? verifMatch[1].trim() : '—';

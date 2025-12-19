@@ -1,0 +1,15 @@
+<svg width="300" height="100" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="cubeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+<stop offset="0%" style="stop-color:#87CEEB;stop-opacity:1" />
+<stop offset="100%" style="stop-color:#00008B;stop-opacity:1" />
+</linearGradient>
+</defs>
+<g id="cube">
+<path d="M10 30 L20 20 L60 20 L50 30 Z" fill="#B0E0E6" />
+<path d="M10 30 L50 30 L50 70 L10 70 Z" fill="url(#cubeGrad)" />
+<path d="M50 30 L60 20 L60 60 L50 70 Z" fill="#4682B4" />
+<path d="M10 70 L20 60 L60 60 L50 70 Z" fill="#000080" />
+</g>
+<text x="90" y="60" font-size="36" fill="black" font-weight="bold">Metatron</text>
+</svg>
