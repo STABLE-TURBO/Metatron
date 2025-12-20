@@ -1,6 +1,8 @@
 // test.js — Test suite for metatron.js parser
 // Run with: node test.js
 
+import { parseResponse } from './parser.js';
+
 // Mock data for testing parser
 const testCases = [
   {
@@ -51,22 +53,6 @@ VERIFICATION: Just a test`,
     }
   }
 ];
-
-function parseResponse(raw) {
-  const explMatch = raw.match(/EXPLANATION:\s*([\s\S]*?)\nCODE:/i);
-  const codeMatch = raw.match(/CODE:\s*([\s\S]*?)\nVERIFICATION:/i);
-  const verifMatch = raw.match(/VERIFICATION:\s*([\s\S]*)$/i);
-
-  if (!explMatch || !codeMatch || !verifMatch) {
-    return null; // Failed parse
-  }
-
-  return {
-    explanation: explMatch[1].trim(),
-    code: codeMatch[1].trim(),
-    verification: verifMatch[1].trim()
-  };
-}
 
 console.log('Running parser tests...\n');
 

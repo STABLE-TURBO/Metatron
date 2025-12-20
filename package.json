@@ -2,6 +2,10 @@
   "name": "metatron",
   "version": "1.0.0",
   "type": "module",
+  "scripts": {
+    "start": "node metatron.js",
+    "test": "node test.js"
+  },
   "dependencies": {
     "node-fetch": "^3.3.2"
   }
